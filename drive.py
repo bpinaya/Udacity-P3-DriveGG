@@ -21,6 +21,15 @@ from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_a
 import tensorflow as tf
 tf.python.control_flow_ops = tf
 
+char = 0
+import _thread
+def keypress():
+    global char
+    while 1:
+        char = getch()
+        if char == b'\x03':
+            break
+
 
 sio = socketio.Server()
 app = Flask(__name__)
@@ -41,6 +50,11 @@ def crop_and_resize(image):
 
 @sio.on('telemetry')
 def telemetry(sid, data):
+    
+    
+    global desired_speed
+    global steering_std
+    
     # The current steering angle of the car
     steering_angle = data["steering_angle"]
     # The current throttle of the car
