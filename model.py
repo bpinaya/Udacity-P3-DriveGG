@@ -150,7 +150,6 @@ def train_model(model,train_data, validate_data):
                                      verbose=1)
         #
         num_runs = num_runs +1
-        print('wasabi')
         val_loss = history.history['val_loss'][0] 
         if (val_loss < best_value):
             index_best = num_runs
@@ -254,7 +253,6 @@ def main():
     test_predictions(vgg_steering_model,validate_ud)
     best_value,index_best = train_model(vgg_steering_model,train_ud,validate_ud)
     print('FINAL RESULTS')
-    print(best_value,index_best)
     test_predictions(vgg_steering_model,validate_ud)
 
 if __name__ == "__main__":

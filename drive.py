@@ -21,24 +21,13 @@ from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_a
 import tensorflow as tf
 tf.python.control_flow_ops = tf
 
-char = 0
-import _thread
-def keypress():
-    global char
-    while 1:
-        char = getch()
-        if char == b'\x03':
-            break
-
-
 sio = socketio.Server()
 app = Flask(__name__)
 model = None
 prev_image_array = None
 
-kp = 0.5
-desired_speed = 10
-steering_std = 0.5
+k_p = 0.5
+target_speed = 12
 
 def crop_and_resize(image):
     cropped_image = image[50:145,:,:]
@@ -49,22 +38,15 @@ def crop_and_resize(image):
     return resized_image
 
 @sio.on('telemetry')
-def telemetry(sid, data):
-    
-    
-    global desired_speed
-    global steering_std
+def telemetry(sid, data):  
+    global target_speed
     
     # The current steering angle of the car
     steering_angle = data["steering_angle"]
     # The current throttle of the car
     throttle = data["throttle"]
     # The current speed of the car
-    speed = data["speed"]
-    
     speed = float(data["speed"])
-    e = desired_speed - speed
-    
     
     # The current image from the center camera of the car
     imgString = data["image"]
@@ -75,24 +57,11 @@ def telemetry(sid, data):
     # This model currently assumes that the features of the model are just the images. Feel free to change this.
     steering_angle = float(model.predict(transformed_image_array, batch_size=1))
     # The driving model currently just outputs a constant throttle. Feel free to edit this.
-    throttle = 0.2
-    
-    #Proportional controller for throttle
-    throttle = kp*e
-    #DEBUG: force 12.5 degrees steering angle
-    if char == b'a':
-        steering_angle = -.5
-    if char ==   b'd':
-        steering_angle = .5
-    #cut throttle for vehicle
-    if char ==   b' ':
-        throttle = 0
-    #Increase / Decrease vehicle desired speed
-    if char ==   b'w':
-        desired_speed+=0.1
-    if char ==   b's':
-        desired_speed-=0.1
-    print(char,steering_angle, throttle)
+    # A proportional controller to ease up on the speed and angles
+    # https://en.wikipedia.org/wiki/Proportional_control
+    # k_p = Proportional gain
+    error = target_speed - speed
+    throttle = k_p*error
     
     print(steering_angle, throttle)
     send_control(steering_angle, throttle)
