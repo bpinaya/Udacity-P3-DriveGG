@@ -28,7 +28,7 @@ HEIGHT = 64
 CHANNELS = 3
 BATCH_SIZE = 256
 IMAGE_SIZE = (WIDTH,HEIGHT,CHANNELS)
-OFF_CENTER_IMG = .25
+OFF_CENTER_IMG = .20
 
 def change_brightness(image):
     hsv_image = cv2.cvtColor(image,cv2.COLOR_RGB2HSV)
@@ -129,6 +129,7 @@ def train_model(model,train_data, validate_data):
     num_runs = 0
     best_value = 999999
     index_best = 0
+    bias_best = 0
     while True:
         bias = 1./(num_runs+1.)
         print(num_runs+1,bias)
@@ -144,11 +145,14 @@ def train_model(model,train_data, validate_data):
         if (val_loss < best_value):
             index_best = num_runs
             best_value = val_loss
+            bias_best = bias
             save_best_model(model)
         test_predictions(model,train_data)
         #
         if num_runs > 10:
             break
+    print('BEST BIAS')
+    print(bias_best)
     return best_value, index_best
 
 def train_data_generator(train_data, bias):
@@ -195,7 +199,7 @@ def validate_data_generator(validate_data):
             image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
             image = crop_and_resize(image)
             images[index] = image
-            y[index] = validate_data.steering.iloc[index]
+            angles[index] = validate_data.steering.iloc[index]
         yield images, angles
 
 #
