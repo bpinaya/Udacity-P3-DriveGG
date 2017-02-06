@@ -15,15 +15,10 @@ from keras.utils import np_utils
 from keras import initializations
 from keras.applications.vgg16 import VGG16
 from pathlib import Path
+
 my_data = pd.read_csv(os.path.join('data2','driving_log.csv'),index_col = False)
 my_data.columns = ['center','left','right','steering','throttle','brake','speed']
 udacity_data = pd.read_csv(os.path.join('data','driving_log.csv'))
-
-def change_brightness(image):
-    hsv_image = cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
-    brightness = 0.20 + np.random.uniform()
-    hsv_image[:,:,2] = hsv_image[:,:,2]* brightness
-    return cv2.cvtColor(hsv_image,cv2.COLOR_HSV2RGB)
 
 X_RANGE = 80
 Y_RANGE = 30
@@ -34,6 +29,13 @@ CHANNELS = 3
 BATCH_SIZE = 256
 IMAGE_SIZE = (WIDTH,HEIGHT,CHANNELS)
 OFF_CENTER_IMG = .25
+
+def change_brightness(image):
+    hsv_image = cv2.cvtColor(image,cv2.COLOR_RGB2HSV)
+    brightness = 0.20 + np.random.uniform()
+    hsv_image[:,:,2] = hsv_image[:,:,2]* brightness
+    return cv2.cvtColor(hsv_image,cv2.COLOR_HSV2RGB)
+
 
 def x_y_translation(image,angle):
     x_translation = (X_RANGE * np.random.uniform()) - (X_RANGE * 0.5)
@@ -60,17 +62,18 @@ def crop_and_resize(image):
 
     
 def data_augmentation(img_path, angle, threshold, bias):
-    
-    if (abs(new_angle) + bias) < threshold or abs(new_angle) > 1.:
-        return None, None
-
     image = cv2.imread(img_path)  
     image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
     image = change_brightness(image) 
-    image, angle = x_y_translation(image, angle)  
+    image, new_angle = x_y_translation(image, angle)
+    
+    if (abs(new_angle) + bias) < threshold or abs(new_angle) > 1.:
+        return None, None
+    
     if np.random.randint(2) == 0: 
-        img = np.fliplr(image)
+        image = np.fliplr(image)
         new_angle = -new_angle
+        
     image = crop_and_resize(image)
 
     return image, new_angle
@@ -97,7 +100,7 @@ def get_vgg_model(input_shape):
     # https://arxiv.org/pdf/1511.07289v1.pdf
     # https://keras.io/layers/advanced-activations/
     input_layer = Input(shape=input_shape)
-    input_layer = Lambda(lambda x: x/127.5-.5)(input_layer)
+    input_layer = Lambda(lambda x: x/255.-.5)(input_layer)
     #input_layer = Convolution2D(3,1,1,border_mode='same',name='input_conv')(input_layer)
     vgg_16_model = VGG16(weights='imagenet', include_top=False, input_tensor=input_layer)
     print(len(vgg_16_model.layers))
@@ -126,12 +129,10 @@ def get_vgg_model(input_shape):
     
     return model
 
-
-
 #
 def train_model(model,train_data, validate_data):
     print(len(model.layers))
-    model.compile(optimizer=Adam(1e-5),loss='mse')
+    model.compile(optimizer=Adam(1e-4),loss='mse')
     val_loss = model.evaluate_generator(validate_data_generator(validate_data),val_samples=128)
     print(val_loss)
     #test_predictions(model,train_data)
@@ -143,7 +144,7 @@ def train_model(model,train_data, validate_data):
         print(num_runs+1,bias)
         history = model.fit_generator(generator=train_data_generator(train_data,bias),
                                      samples_per_epoch=160*128,
-                                     nb_epoch=6,
+                                     nb_epoch=1,
                                      validation_data=validate_data_generator(validate_data),
                                      nb_val_samples=128,
                                      verbose=1)
@@ -161,15 +162,14 @@ def train_model(model,train_data, validate_data):
             break
     return best_value, index_best
 
-
 def train_data_generator(train_data, bias):
     images = np.zeros((BATCH_SIZE, 64, 64, 3), dtype=np.float)
     angles = np.zeros(BATCH_SIZE, dtype=np.float)
     out_idx = 0
     while 1:
         
-        index = np.random.randint(len(df))
-        angle = df.steering.iloc[idx]
+        index = np.random.randint(len(train_data))
+        angle = train_data.steering.iloc[index]
 
         img_choice = np.random.randint(3)
 
@@ -211,6 +211,19 @@ def validate_data_generator(validate_data):
             y[index] = validate_data.steering.iloc[index]
 
         yield x, y
+
+#
+def save_best_model(model):
+    if Path('model.json').is_file():
+        os.remove('model.json')
+        print('Model already there')
+    if Path('model.h5').is_file():
+        os.remove('model.h5')
+    json_string = model.to_json()
+    with open('model.json','w') as outfile:
+        outfile.write(json_string)
+    model.save_weights('model.h5')
+
 #
 
 def test_predictions(model,validate_data,number_tests=10):
@@ -224,17 +237,7 @@ def test_predictions(model,validate_data,number_tests=10):
         predicted_angle = model.predict(image,batch_size=1)
         print('Prediction: '+str(i))
         print(real_angle,predicted_angle[0][0])
-#
-def save_best_model(model):
-    if Path('model.json').is_file():
-        os.remove('model.json')
-        print('Model already there')
-    if Path('model.h5').is_file():
-        os.remove('model.h5')
-    json_string = model.to_json()
-    with open('model.json','w') as outfile:
-        outfile.write(json_string)
-    model.save_weights('model.h5')
+
     
 def main():
     my_data = pd.read_csv(os.path.join('data2','driving_log.csv'),index_col = False)
@@ -249,7 +252,7 @@ def main():
     #nvidia_steering_model = get_nvidia_model()
     vgg_steering_model = get_vgg_model(IMAGE_SIZE)
     test_predictions(vgg_steering_model,validate_ud)
-    best_value,index_best = train_model(vgg_steering_model,validate_ud,train_ud)
+    best_value,index_best = train_model(vgg_steering_model,train_ud,validate_ud)
     print('FINAL RESULTS')
     print(best_value,index_best)
     test_predictions(vgg_steering_model,validate_ud)
