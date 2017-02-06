@@ -36,7 +36,6 @@ def change_brightness(image):
     hsv_image[:,:,2] = hsv_image[:,:,2]* brightness
     return cv2.cvtColor(hsv_image,cv2.COLOR_HSV2RGB)
 
-
 def x_y_translation(image,angle):
     x_translation = (X_RANGE * np.random.uniform()) - (X_RANGE * 0.5)
     y_translation = (Y_RANGE * np.random.uniform()) - (Y_RANGE * 0.5)
@@ -58,26 +57,19 @@ def crop_and_resize(image):
     #height, width = img.shape[:2]
     resized_image = np.array(resized_image)
     return resized_image
-    #return np.resize(resized_image,(1,64,64,3))
-
-    
+      
 def data_augmentation(img_path, angle, threshold, bias):
     image = cv2.imread(img_path)  
     image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
     image = change_brightness(image) 
-    image, new_angle = x_y_translation(image, angle)
-    
+    image, new_angle = x_y_translation(image, angle)    
     if (abs(new_angle) + bias) < threshold or abs(new_angle) > 1.:
         return None, None
-    
     if np.random.randint(2) == 0: 
         image = np.fliplr(image)
-        new_angle = -new_angle
-        
+        new_angle = -new_angle        
     image = crop_and_resize(image)
-
     return image, new_angle
-
 
 
 def get_nvidia_model():
@@ -125,11 +117,9 @@ def get_vgg_model(input_shape):
     output_layer = Dropout(0.5,name='fc6_dropout')(output_layer)
     
     output_layer = Dense(1, init='zero', name='output_layer')(output_layer)
-    model = Model(input=vgg_16_model.input, output=output_layer)
-    
+    model = Model(input=vgg_16_model.input, output=output_layer)  
     return model
 
-#
 def train_model(model,train_data, validate_data):
     print(len(model.layers))
     model.compile(optimizer=Adam(1e-4),loss='mse')
@@ -162,16 +152,13 @@ def train_model(model,train_data, validate_data):
     return best_value, index_best
 
 def train_data_generator(train_data, bias):
-    images = np.zeros((BATCH_SIZE, 64, 64, 3), dtype=np.float)
+    images = np.zeros((BATCH_SIZE, WIDTH, HEIGHT, CHANNELS), dtype=np.float)
     angles = np.zeros(BATCH_SIZE, dtype=np.float)
     out_idx = 0
     while 1:
-        
         index = np.random.randint(len(train_data))
         angle = train_data.steering.iloc[index]
-
         img_choice = np.random.randint(3)
-
         if img_choice == 0:
             img_path = 'data/'+train_data.left.iloc[index].strip()
             angle += OFF_CENTER_IMG
@@ -192,24 +179,24 @@ def train_data_generator(train_data, bias):
         if out_idx >= BATCH_SIZE:
             yield images, angles
 
-            images = np.zeros((BATCH_SIZE, 64, 64, 3), dtype=np.float)
+            images = np.zeros((BATCH_SIZE, WIDTH, HEIGHT, CHANNELS), dtype=np.float)
             angles = np.zeros(BATCH_SIZE, dtype=np.float)
             out_idx = 0
             
+
 def validate_data_generator(validate_data):
     while 1:
-        x = np.zeros((BATCH_SIZE, 64, 64, 3), dtype=np.float)
-        y = np.zeros(BATCH_SIZE, dtype=np.float)
+        images = np.zeros((BATCH_SIZE, WIDTH, HEIGHT, CHANNELS), dtype=np.float)
+        angles = np.zeros(BATCH_SIZE, dtype=np.float)
 
         for index in np.arange(BATCH_SIZE):
             temp = validate_data.center.iloc[index].strip()
             image = cv2.imread('data/'+temp)
             image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
             image = crop_and_resize(image)
-            x[index] = image
+            images[index] = image
             y[index] = validate_data.steering.iloc[index]
-
-        yield x, y
+        yield images, angles
 
 #
 def save_best_model(model):
@@ -224,7 +211,6 @@ def save_best_model(model):
     model.save_weights('model.h5')
 
 #
-
 def test_predictions(model,validate_data,number_tests=10):
     for i in range(number_tests):
         index = np.random.randint(len(validate_data))
@@ -237,7 +223,7 @@ def test_predictions(model,validate_data,number_tests=10):
         print('Prediction: '+str(i))
         print(real_angle,predicted_angle[0][0])
 
-    
+        
 def main():
     my_data = pd.read_csv(os.path.join('data2','driving_log.csv'),index_col = False)
     my_data.columns = ['center','left','right','steering','throttle','brake','speed']
