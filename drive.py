@@ -27,7 +27,9 @@ app = Flask(__name__)
 model = None
 prev_image_array = None
 
-
+kp = 0.5
+desired_speed = 10
+steering_std = 0.5
 
 def crop_and_resize(image):
     cropped_image = image[50:145,:,:]
@@ -45,6 +47,11 @@ def telemetry(sid, data):
     throttle = data["throttle"]
     # The current speed of the car
     speed = data["speed"]
+    
+    speed = float(data["speed"])
+    e = desired_speed - speed
+    
+    
     # The current image from the center camera of the car
     imgString = data["image"]
     image = Image.open(BytesIO(base64.b64decode(imgString)))
@@ -55,6 +62,24 @@ def telemetry(sid, data):
     steering_angle = float(model.predict(transformed_image_array, batch_size=1))
     # The driving model currently just outputs a constant throttle. Feel free to edit this.
     throttle = 0.2
+    
+    #Proportional controller for throttle
+    throttle = kp*e
+    #DEBUG: force 12.5 degrees steering angle
+    if char == b'a':
+        steering_angle = -.5
+    if char ==   b'd':
+        steering_angle = .5
+    #cut throttle for vehicle
+    if char ==   b' ':
+        throttle = 0
+    #Increase / Decrease vehicle desired speed
+    if char ==   b'w':
+        desired_speed+=0.1
+    if char ==   b's':
+        desired_speed-=0.1
+    print(char,steering_angle, throttle)
+    
     print(steering_angle, throttle)
     send_control(steering_angle, throttle)
 
