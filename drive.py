@@ -30,6 +30,10 @@ k_p = 0.5
 target_speed = 12
 
 def crop_and_resize(image):
+    """Crops the image to focus on the road only, with a safe margin. It then resizes the image.
+    :image: A RGB Image.
+    Returns a cropped and resized Image
+    """
     cropped_image = image[50:145,:,:]
     # cv2.INTER_AREA for shrinking and cv2.INTER_CUBIC & cv2.INTER_LINEAR for zooming
     resized_image = cv2.resize(cropped_image,(64,64),interpolation=cv2.INTER_AREA)
