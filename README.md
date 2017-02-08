@@ -168,9 +168,9 @@ Our learning rate is of 1e-4. The training can be done with my_data or the udaci
 
 ### Testing and generalization
 The results are promising, having preloaded weights decreases the training time a lot. The network is generalized to the second track, with minor changes in the resolution.
-The results can be seen on this video:
+The results can be seen on [this video](https://youtu.be/Mwq-_NfKNtM):
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/Mwq-_NfKNtM" frameborder="0" allowfullscreen></iframe>
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/Mwq-_NfKNtM/0.jpg)](https://www.youtube.com/watch?v=Mwq-_NfKNtM)
 
 ### Discussion
 The model tested here is a variant of vgg16, and there are many more promising models that would be interesting to implement, like [Nvidia's end to end driving model](https://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf) that would be interesting to use, maybe try and use a concatenated technique where 2 different networks are concatenated.
